@@ -11,6 +11,28 @@ use App\Controller\AppController;
 class ArticlesController extends AppController
 {
 
+    public function isAuthorized($user)
+    {
+        $action = $this->request->params['action'];
+
+        // The add and index actions are always allowed.
+        if (in_array($action, ['index', 'add', 'tags'])) {
+            return true;
+        }
+        // All other actions require an id.
+        if (empty($this->request->params['pass'][0])) {
+            return false;
+        }
+
+        // Check that the article belongs to the current user.
+        $id = $this->request->params['pass'][0];
+        $articleId = (int)$this->request->params['pass'][0];
+        if ($this->Articles->isOwnedBy($articleId, $user['id'])) {
+            return true;
+        }
+        return parent::isAuthorized($user);
+    }
+
     /**
      * Index method
      *
@@ -18,9 +40,12 @@ class ArticlesController extends AppController
      */
     public function index()
     {
-        $articles = $this->paginate($this->Articles);
-
-        $this->set(compact('articles'));
+        $this->paginate = [
+            'conditions' => [
+                'Articles.user_id' => $this->Auth->user('id'),
+            ]
+        ];
+        $this->set('articles', $this->paginate($this->Articles));
         $this->set('_serialize', ['articles']);
     }
 
@@ -51,15 +76,15 @@ class ArticlesController extends AppController
         $article = $this->Articles->newEntity();
         if ($this->request->is('post')) {
             $article = $this->Articles->patchEntity($article, $this->request->data);
+            $article->user_id = $this->Auth->user('id');
             if ($this->Articles->save($article)) {
-                $this->Flash->success(__('The article has been saved.'));
-
+                $this->Flash->success('The article has been saved.');
                 return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The article could not be saved. Please, try again.'));
             }
+            $this->Flash->error('The article could not be saved. Please, try again.');
         }
-        $this->set(compact('article'));
+        $tags = $this->Articles->Tags->find('list');
+        $this->set(compact('article', 'tags'));
         $this->set('_serialize', ['article']);
     }
 
@@ -73,19 +98,19 @@ class ArticlesController extends AppController
     public function edit($id = null)
     {
         $article = $this->Articles->get($id, [
-            'contain' => []
+            'contain' => ['Tags']
         ]);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $article = $this->Articles->patchEntity($article, $this->request->data);
+            $article->user_id = $this->Auth->user('id');
             if ($this->Articles->save($article)) {
-                $this->Flash->success(__('The article has been saved.'));
-
+                $this->Flash->success('The article has been saved.');
                 return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The article could not be saved. Please, try again.'));
             }
+            $this->Flash->error('The article could not be saved. Please, try again.');
         }
-        $this->set(compact('article'));
+        $tags = $this->Articles->Tags->find('list');
+        $this->set(compact('article', 'tags'));
         $this->set('_serialize', ['article']);
     }
 

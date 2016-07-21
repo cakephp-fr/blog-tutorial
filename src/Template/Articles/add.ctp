@@ -12,6 +12,7 @@
             echo $this->Form->input('title');
             echo $this->Form->input('body');
             echo $this->Form->input('url');
+            echo $this->Form->input('tag_string', ['type' => 'text']);
         ?>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>
